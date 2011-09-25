@@ -1,0 +1,5 @@
+should have nodemon installed:
+    $> npm install nodemon -g
+
+to run:
+    $> nodemon app.js [--debug]

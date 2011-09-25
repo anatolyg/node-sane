@@ -59,7 +59,7 @@ app.post('/scan/', function(req, res) {
             if (!err) {
                 // call successful
                 console.log("success!")
-                var child = exec("./scripts/scan-adf.sh " + docId + " " + docId, function (error, stdout, stderr) {
+                var child = exec("./scripts/scan-adf.sh " + dirName + " " + docId, function (error, stdout, stderr) {
                     sys.print('stdout: ' + stdout);
                     sys.print('stderr: ' + stderr);
                     if (error !== null) {

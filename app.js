@@ -48,16 +48,17 @@ app.get('/', function(req, res){
 
 app.post('/scan/', function(req, res) {
     var name = req.param("name"),
-        desc = req.param("desc");
+        desc = req.param("desc"),
+        docId = uuid();
 
     // name and desc are valid
     if (name && desc) {
         // let's create an ID to call this guy
-        var docId = uuid();
+
         fs.mkdir('./' + docId, null, function(err) {
             if (!!err) {
                 // call successful
-                var child = exec("scan_pages.sh", function (error, stdout, stderr) {
+                var child = exec("./scripts/scan-adf.sh " + docId + " " + docId, function (error, stdout, stderr) {
                     sys.print('stdout: ' + stdout);
                     sys.print('stderr: ' + stderr);
                     if (error !== null) {
@@ -71,7 +72,7 @@ app.post('/scan/', function(req, res) {
     }
 
     res.render('scan.ejs', {
-        title: ''
+        title: 'Thanks for scanning, your file is ' + docId + '.pdf'
     });
 });
 

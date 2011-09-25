@@ -72,7 +72,7 @@ app.post('/scan/', function(req, res) {
                     else {
                         // this is where partial comes in?
                         console.log("All good!");
-                        link = dirName + "/" + docId + ".pdf";
+                        link = "/scans/" + docId + "/" + docId + ".pdf";
                         tite = 'Thanks for scanning!';
                     }
 

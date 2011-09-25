@@ -54,18 +54,27 @@ app.post('/scan/', function(req, res) {
     // name and desc are valid
     if (name && desc) {
         // let's create an ID to call this guy
-
-        fs.mkdir('./' + docId, null, function(err) {
-            if (!!err) {
+        var dirName = './scans/' + docId;
+        fs.mkdir(dirName, 0755, function(err) {
+            if (!err) {
                 // call successful
+                console.log("success!")
                 var child = exec("./scripts/scan-adf.sh " + docId + " " + docId, function (error, stdout, stderr) {
                     sys.print('stdout: ' + stdout);
                     sys.print('stderr: ' + stderr);
                     if (error !== null) {
-                        console.log('exec error: ' + error);
+                        fs.rmdir(dirName, function(err) {
+                            console.log("deleted dir: " + dirName);
+                        });
+                    }
+                    else {
+                        console.log("All good!");
                     }
                 });
                 
+            }
+            else {
+
             }
         });
         

@@ -49,7 +49,9 @@ app.get('/', function(req, res){
 app.post('/scan/', function(req, res) {
     var name = req.param("name"),
         desc = req.param("desc"),
-        docId = uuid();
+        docId = uuid(),
+        link = "",
+        title = "";
 
     // name and desc are valid
     if (name && desc) {
@@ -57,19 +59,27 @@ app.post('/scan/', function(req, res) {
         var dirName = './scans/' + docId;
         fs.mkdir(dirName, 0755, function(err) {
             if (!err) {
-                // call successful
-                console.log("success!")
+                // directory created successfully, let's scan
                 var child = exec("./scripts/scan-adf.sh " + dirName + " " + docId, function (error, stdout, stderr) {
                     sys.print('stdout: ' + stdout);
                     sys.print('stderr: ' + stderr);
                     if (error !== null) {
                         fs.rmdir(dirName, function(err) {
                             console.log("deleted dir: " + dirName);
+                            title = "Scan failed " + stderr;
                         });
                     }
                     else {
+                        // this is where partial comes in?
                         console.log("All good!");
+                        link = dirName + "/" + docId + ".pdf";
+                        tite = 'Thanks for scanning!';
                     }
+
+                    res.render('scan.ejs', {
+                        title: title,
+                        link_id: link
+                    });
                 });
                 
             }
@@ -79,10 +89,6 @@ app.post('/scan/', function(req, res) {
         });
         
     }
-
-    res.render('scan.ejs', {
-        title: 'Thanks for scanning, your file is ' + docId + '.pdf'
-    });
 });
 
 app.listen(3000);

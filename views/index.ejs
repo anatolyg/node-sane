@@ -7,6 +7,42 @@
         <textarea name="desc" id="desc"></textarea>
     </label>
 
+    <label for="keywords">keywords
+        <input name="keywords" id="keywords">
+    </label>
+
     <input type="submit"/>
 </form>
-<a href="/scan/">Scan Pages</a>
+<table>
+    <thead>
+        <tr>
+            <th>name</th>
+            <th>description</th>
+            <th>keywords</th>
+            <th>timestamp</th>
+        </tr>
+    </thead>
+    <tbody>
+        <%
+        for (var docId=0; docId < docs.length; docId++) {
+        console.log(docs);
+        %>
+        <tr>
+            <td>
+                <a href="<%= docs[docId].value.link%>"><%= docs[docId].value.name%></a>
+            </td>
+            <td>
+                <%= docs[docId].value.description %>
+            </td>
+            <td>
+                <%= docs[docId].value.keywords %>
+            </td>
+            <td>
+                <%= new Date(docs[docId].value.timestamp).toLocaleString() %>
+            </td>
+        </tr>
+        <%
+        }
+        %>
+    </tbody>
+</table>

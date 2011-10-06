@@ -4,10 +4,16 @@
  */
 
 var express = require('express');
-var redis = require('redis');
+/*
+var redis = require('redis'),
+    redis_client = redis.createClient(null, '192.168.1.111');
+*/
 var sys = require('sys');
 var fs = require('fs');
 var exec = require('child_process').exec;
+
+var cradle = require('cradle')
+var db = new(cradle.Connection)().database('node-scan');
 
 var app = module.exports = express.createServer();
 
@@ -37,18 +43,21 @@ function uuid(a){
     return a?(0|Math.random()*16).toString(16):(""+1e7+-1e3+-4e3+-8e3+-1e11).replace(/1|0/g,uuid)
 }
 
-
 // Routes
-
 app.get('/', function(req, res){
-    res.render('index.ejs', {
-        title: 'Need to scan somethings?'
+    db.view('all_scans/all_scans', function (err, docs) {
+        console.log(docs);
+        res.render('index.ejs', {
+            title: "Need to scan something?",
+            docs: docs
+        });
     });
 });
 
 app.post('/scan/', function(req, res) {
     var name = req.param("name"),
         desc = req.param("desc"),
+        keywords = req.param("keywords"),
         docId = uuid(),
         link = "",
         title = "";
@@ -57,6 +66,7 @@ app.post('/scan/', function(req, res) {
     if (name && desc) {
         // let's create an ID to call this guy
         var dirName = './scans/' + docId;
+        
         fs.mkdir(dirName, 0755, function(err) {
             if (!err) {
                 // directory created successfully, let's scan
@@ -68,26 +78,52 @@ app.post('/scan/', function(req, res) {
                             console.log("deleted dir: " + dirName);
                             title = "Scan failed " + stderr;
                         });
+                        db.save("error:" + docId, {
+                            out: stdout,
+                            err: stderr,
+                            error: error
+                        }, function(err, res) {});
                     }
                     else {
                         // this is where partial comes in?
                         console.log("All good!");
                         link = "/scans/" + docId + "/" + docId + ".pdf";
-                        tite = 'Thanks for scanning!';
+                        title = 'Thanks for scanning!';
+                        // put the following into storage, as well as on disk next to PDF
+                        db.save(docId, {
+                            link: link,
+                            timestamp: (new Date()).getTime(),
+                            name: name,
+                            description: desc,
+                            doc_id: docId,
+                            keywords: keywords
+                        }, function (err, res) {
+                            if (err) {
+                                console.log("could not save document", docId, err);
+                            } else {
+                                // Handle success
+                            }
+                        });
                     }
-
-                    res.render('scan.ejs', {
-                        title: title,
-                        link_id: link
-                    });
                 });
-                
             }
             else {
-
+                console.log("Could not create dir", dirName);
             }
         });
-        
+        res.render('scan.ejs', {
+            title: title
+        });
+    }
+    else {
+        db.view('all_scans/all_scans', function (err, docs) {
+            console.log(docs);
+            res.render('index.ejs', {
+                title: "Need to scan something?",
+                error: "please enter something for name and description, so you can find it later",
+                docs: docs
+            });
+        });
     }
 });
 

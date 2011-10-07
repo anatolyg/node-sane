@@ -24,8 +24,9 @@
     </thead>
     <tbody>
         <%
-        for (var docId=0; docId < docs.length; docId++) {
-        console.log(docs);
+        if (docs) {
+            for (var docId=0; docId < docs.length; docId++) {
+                console.log(docs);
         %>
         <tr>
             <td>
@@ -42,6 +43,7 @@
             </td>
         </tr>
         <%
+            }
         }
         %>
     </tbody>

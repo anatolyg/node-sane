@@ -1,50 +1,57 @@
-<form method="POST" action="/scan/">
-    <label for="name">doc name
-        <input name="name" id="name">
-    </label>
+<div>
+
+    <form method="POST" action="/scan/" class="">
+        <div class="clearfix">
+            <label for="name">doc name</label>
+            <div class="input"><input name="name" id="name"></div>
+        </div>
+
+        <div class="clearfix">
+            <label for="desc">doc description</label>
+            <div class="input"><textarea name="desc" id="desc"></textarea></div>
+        </div>
+
+        <div class="clearfix">
+            <label for="keywords">keywords</label>
+            <div class="input"><input name="keywords" id="keywords"></div>
+        </div>
+
+        <div class="well">
+            <input type="submit" class="btn large primary"/>
+        </div>
+    </form>
     
-    <label for="desc">doc description
-        <textarea name="desc" id="desc"></textarea>
-    </label>
+</div>
 
-    <label for="keywords">keywords
-        <input name="keywords" id="keywords">
-    </label>
-
-    <input type="submit"/>
-</form>
-<table>
-    <thead>
-        <tr>
-            <th>name</th>
-            <th>description</th>
-            <th>keywords</th>
-            <th>timestamp</th>
-        </tr>
-    </thead>
-    <tbody>
-        <%
-        if (docs) {
-            for (var docId=0; docId < docs.length; docId++) {
-                console.log(docs);
-        %>
-        <tr>
-            <td>
-                <a href="<%= docs[docId].value.link%>"><%= docs[docId].value.name%></a>
-            </td>
-            <td>
+<div>
+    <dl>
+    <%
+    if (docs) {
+        for (var docId=0; docId < docs.length; docId++) {
+    %>
+        <dt>
+            <h4><a href="<%= docs[docId].value.link%>"><%= docs[docId].value.name%></a>
+            <%
+                if (docs[docId].value.keywords) {
+                    var keywords = docs[docId].value.keywords;
+                    for (var key = 0; key < keywords.length; key++) {
+            %>
+                <a href="/scan/keyword/<%= keywords[key].trim()%>" class="label"><%= keywords[key].trim()%></a>
+            <%
+                    }
+                }
+            %>        </h4>
+            <%= new Date(docs[docId].value.timestamp).toLocaleString() %>
+        </dt>
+        <dd>
+            <p>
                 <%= docs[docId].value.description %>
-            </td>
-            <td>
-                <%= docs[docId].value.keywords %>
-            </td>
-            <td>
-                <%= new Date(docs[docId].value.timestamp).toLocaleString() %>
-            </td>
-        </tr>
-        <%
+            </p>
+            <a href="/scan/<%= docs[docId].value.doc_id%>">properties</a>
+        </dd>
+    <%
             }
         }
-        %>
-    </tbody>
-</table>
+    %>
+    </dl>
+</div>

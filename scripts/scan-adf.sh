@@ -4,9 +4,9 @@ sys=`uname`
 
 if [ $sys == 'Darwin' ]
 then
-    echo 'Bypass Scan'
+    echo '{"statusText":"Bypass Scan", "status":1}'
+    cp ./scripts/data/random.pdf $1/$2.pdf
 else
-    echo 'Scanning using feeder...'
     # scan using feeder
     scanadf --resolution 300 -o $1/image-%04d
 
@@ -16,6 +16,5 @@ else
 
     # delete the large files
     rm -rf $1/image-*
-
-    echo 'Finished!'
 fi
+echo '{"statusText":"finished", "status":0}'

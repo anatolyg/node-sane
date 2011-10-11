@@ -1,0 +1,16 @@
+<div>
+    <dl>
+        <dt>Description</dt>
+        <dd><%= scan.description %></dd>
+        <dt>Timestamp</dt>
+        <dd><%= (new Date(scan.timestamp)).toLocaleString() %></dd>
+        <dt>Keywords</dt>
+        <dd><%= scan.keywords %></dd>
+    </dl>
+    <form action="/scan/<%=scan.doc_id%>/delete" method="GET">
+        <div class="well">
+            <a href="<%= scan.link%>" class="btn primary">Download</a>
+            <input type="submit" value="Delete" class="btn danger offset10"/>
+        </div>
+    </form>
+</div>

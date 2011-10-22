@@ -61,7 +61,7 @@ var GridStore = exports.GridStore = function(db, fileIdObject, mode, options) {
   this.root = this.options['root'] == null ? exports.GridStore.DEFAULT_ROOT_COLLECTION : this.options['root'];
   this.position = 0;
   // Set default chunk size
-  this.internalChunkSize = Chunk.DEFAULT_CHUNK_SIZE;
+  this.internalChunkSize = this.options['chunkSize'] == null ? Chunk.DEFAULT_CHUNK_SIZE : this.options['chunkSize'];
   
 	/**
 	 * The chunk size used by this file.
@@ -102,6 +102,11 @@ var GridStore = exports.GridStore = function(db, fileIdObject, mode, options) {
  *     the reference to this object.
  */
 GridStore.prototype.open = function(callback) {
+  if( this.mode != "w" && this.mode != "w+" && this.mode != "r"){
+    callback(new Error("Illegal mode " + this.mode), null);
+    return;
+  }
+
   var self = this;
   
   if((self.mode == "w" || self.mode == "w+") && self.db.serverConfig.primary != null) {
@@ -114,19 +119,18 @@ GridStore.prototype.open = function(callback) {
         self.chunkCollection(function(err, chunkCollection) {
           // Ensure index on chunk collection
           chunkCollection.ensureIndex([['files_id', 1], ['n', 1]], function(err, index) {
-            self._open(callback);
+            _open(self, callback);
           });
         });
       });
     });
   } else {
-    self._open(callback);
+    _open(self, callback);
   }  
 }
  
-GridStore.prototype._open = function(callback) {
-  var self = this;
-
+// Hidding the _open function
+var _open = function(self, callback) {
   self.collection(function(err, collection) {
     if(err!==null) {
       callback(new Error("at collection: "+err), null);
@@ -138,73 +142,35 @@ GridStore.prototype._open = function(callback) {
     query = self.fileId == null && this.filename == null ? null : query;
 
     // Fetch the chunks
-    self.chunkCollection(function(err, chunkCollection) {
-      if(query != null) {
-        collection.find(query, function(err, cursor) {
-          // Fetch the file
-          cursor.nextObject(function(err, doc) {
-            // Chek if the collection for the files exists otherwise prepare the new one
-            if(doc != null) {              
-              self.fileId = doc._id;
-              self.contentType = doc.contentType;
-              self.internalChunkSize = doc.chunkSize;
-              self.uploadDate = doc.uploadDate;
-              self.aliases = doc.aliases;
-              self.length = doc.length;
-              self.metadata = doc.metadata;
-              self.internalMd5 = doc.md5;
-            } else {
-              self.fileId = self.fileId instanceof self.db.bson_serializer.ObjectID ? self.fileId : new self.db.bson_serializer.ObjectID();
-              self.contentType = exports.GridStore.DEFAULT_CONTENT_TYPE;
-              self.internalChunkSize = self.internalChunkSize == null ? Chunk.DEFAULT_CHUNK_SIZE : self.internalChunkSize;
-              self.length = 0;
-            }
+    if(query != null) {
+      collection.find(query, function(err, cursor) {
+        // Fetch the file
+        cursor.nextObject(function(err, doc) {
+          // Chek if the collection for the files exists otherwise prepare the new one
+          if(doc != null) {              
+            self.fileId = doc._id;
+            self.contentType = doc.contentType;
+            self.internalChunkSize = doc.chunkSize;
+            self.uploadDate = doc.uploadDate;
+            self.aliases = doc.aliases;
+            self.length = doc.length;
+            self.metadata = doc.metadata;
+            self.internalMd5 = doc.md5;
+          } else {
+            self.fileId = self.fileId instanceof self.db.bson_serializer.ObjectID ? self.fileId : new self.db.bson_serializer.ObjectID();
+            self.contentType = exports.GridStore.DEFAULT_CONTENT_TYPE;
+            self.internalChunkSize = self.internalChunkSize == null ? Chunk.DEFAULT_CHUNK_SIZE : self.internalChunkSize;
+            self.length = 0;
+          }
 
-            // Process the mode of the object
-            if(self.mode == "r") {
-              self.nthChunk(0, function(err, chunk) {
-                self.currentChunk = chunk;
-                self.position = 0;
-                callback(null, self);
-              });
-            } else if(self.mode == "w") {
-              self.chunkCollection(function(err, collection2) {
-                // Delete any existing chunks
-                self.deleteChunks(function(err, result) {
-                  self.currentChunk = new Chunk(self, {'n':0});
-                  self.contentType = self.options['content_type'] == null ? self.contentType : self.options['content_type'];
-                  self.internalChunkSize = self.options['chunk_size'] == null ? self.internalChunkSize : self.options['chunk_size'];
-                  self.metadata = self.options['metadata'] == null ? self.metadata : self.options['metadata'];
-                  self.position = 0;
-                  callback(null, self);
-                });
-              });
-            } else if(self.mode == "w+") {
-              self.chunkCollection(function(err, collection) {
-                self.nthChunk(self.lastChunkNumber(), function(err, chunk) {
-                  // Set the current chunk
-                  self.currentChunk = chunk == null ? new Chunk(self, {'n':0}) : chunk;
-                  self.currentChunk.position = self.currentChunk.data.length();
-                  self.metadata = self.options['metadata'] == null ? self.metadata : self.options['metadata'];
-                  self.position = self.length;
-                  callback(null, self);
-                });
-              });                
-            } else {
-              callback(new Error("Illegal mode " + self.mode), null);
-            }
-          });
-        });              
-      } else {
-        // Write only mode
-        self.fileId = new self.db.bson_serializer.ObjectID();
-        self.contentType = exports.GridStore.DEFAULT_CONTENT_TYPE;
-        self.internalChunkSize = self.internalChunkSize == null ? Chunk.DEFAULT_CHUNK_SIZE : self.internalChunkSize;
-        self.length = 0;        
-        
-        // No file exists set up write mode
-        if(self.mode == "w") {
-          self.chunkCollection(function(err, collection2) {
+          // Process the mode of the object
+          if(self.mode == "r") {
+            self.nthChunk(0, function(err, chunk) {
+              self.currentChunk = chunk;
+              self.position = 0;
+              callback(null, self);
+            });
+          } else if(self.mode == "w") {
             // Delete any existing chunks
             self.deleteChunks(function(err, result) {
               self.currentChunk = new Chunk(self, {'n':0});
@@ -214,9 +180,7 @@ GridStore.prototype._open = function(callback) {
               self.position = 0;
               callback(null, self);
             });
-          });
-        } else if(self.mode == "w+") {
-          self.chunkCollection(function(err, collection) {
+          } else if(self.mode == "w+") {
             self.nthChunk(self.lastChunkNumber(), function(err, chunk) {
               // Set the current chunk
               self.currentChunk = chunk == null ? new Chunk(self, {'n':0}) : chunk;
@@ -224,13 +188,41 @@ GridStore.prototype._open = function(callback) {
               self.metadata = self.options['metadata'] == null ? self.metadata : self.options['metadata'];
               self.position = self.length;
               callback(null, self);
-            });
-          });                
-        } else {
-          callback(new Error("Illegal mode " + self.mode), null);
-        }        
-      }
-    });
+            });                
+          }
+        });
+      });              
+    } else {
+      // Write only mode
+      self.fileId = new self.db.bson_serializer.ObjectID();
+      self.contentType = exports.GridStore.DEFAULT_CONTENT_TYPE;
+      self.internalChunkSize = self.internalChunkSize == null ? Chunk.DEFAULT_CHUNK_SIZE : self.internalChunkSize;
+      self.length = 0;        
+      
+      self.chunkCollection(function(err, collection2) {
+        // No file exists set up write mode
+        if(self.mode == "w") {
+          // Delete any existing chunks
+          self.deleteChunks(function(err, result) {
+            self.currentChunk = new Chunk(self, {'n':0});
+            self.contentType = self.options['content_type'] == null ? self.contentType : self.options['content_type'];
+            self.internalChunkSize = self.options['chunk_size'] == null ? self.internalChunkSize : self.options['chunk_size'];
+            self.metadata = self.options['metadata'] == null ? self.metadata : self.options['metadata'];
+            self.position = 0;
+            callback(null, self);
+          });
+        } else if(self.mode == "w+") {
+          self.nthChunk(self.lastChunkNumber(), function(err, chunk) {
+            // Set the current chunk
+            self.currentChunk = chunk == null ? new Chunk(self, {'n':0}) : chunk;
+            self.currentChunk.position = self.currentChunk.data.length();
+            self.metadata = self.options['metadata'] == null ? self.metadata : self.options['metadata'];
+            self.position = self.length;
+            callback(null, self);
+          });
+        }            
+      });
+    };
   });
 };
 
@@ -1155,6 +1147,7 @@ ReadStream.prototype._execute = function() {
   }
 
   var data = gstore.currentChunk.readSlice(toRead);
+  
   if (data != null) {
     self.completedLength += data.length;
     self.pendingChunk = null;

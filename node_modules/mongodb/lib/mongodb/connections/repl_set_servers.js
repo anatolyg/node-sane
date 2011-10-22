@@ -192,7 +192,8 @@ ReplSetServers.prototype.connect = function(parent, callback) {
 
           // Add servers to list of connections, discover servers in the replicaset
           // that the driver has not explicitly added
-          for(var i in replicas) {
+          // for(var i in replicas) {
+          for(var i = 0; i < replicas.length; i++) {
             var replica = replicas[i];
             // Make sure we don't have duplicate entries
             if(replSetSelf.addresses[replica] == 1) {
@@ -268,10 +269,21 @@ ReplSetServers.prototype.connect = function(parent, callback) {
       this.send(db_command);
 
       server.connection.on("data", function(message) {
-        // Parse the data as a reply object
-        var reply = new MongoReply(parent, message);
-        // Emit error if there is one
-        reply.responseHasError ? parent.emit(reply.responseTo.toString(), reply.documents[0], reply) : parent.emit(reply.responseTo.toString(), null, reply);
+        var reply = null;
+        
+        // Catch error and log
+        try {
+          // Parse the data as a reply object
+          reply = new MongoReply(parent, message);        
+          // Emit error if there is one
+          reply.responseHasError ? parent.emit(reply.responseTo.toString(), reply.documents[0], reply) : parent.emit(reply.responseTo.toString(), null, reply);
+        } catch(err) {
+          // Catch and emit
+          var errObj = {err:"unparsable", bin:message, trace:err};
+          server.logger.error("mongoreplyParserError", errObj);
+          parent.emit("error", errObj);
+        }
+
         // Remove the listener
         if(parent.notReplied[reply.responseTo.toString()]) {
          delete parent.notReplied[reply.responseTo.toString()];
@@ -281,6 +293,10 @@ ReplSetServers.prototype.connect = function(parent, callback) {
     });
 
     server.connection.on("error", function(err) {
+      // Log error message
+      var errorType = err.err != null && err.err == "socketHandler" ? err.err : "uncaughtException";    
+      if(server.logger && server.logger.error) server.logger.error("socketHandler", err);
+
       if(parent.isInitializing) {
         //we only have one error, if the rest are ok there is no problem
         numberOfErrorServers++;

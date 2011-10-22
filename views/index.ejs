@@ -30,24 +30,25 @@
         for (var docId=0; docId < docs.length; docId++) {
     %>
         <dt>
-            <h4><a href="<%= docs[docId].value.link%>"><%= docs[docId].value.name%></a>
+            <h4><a href="<%= docs[docId].link%>"><%= docs[docId].name%></a>
             <%
-                if (docs[docId].value.keywords) {
-                    var keywords = docs[docId].value.keywords;
+                if (docs[docId].keywords) {
+                    var keywords = docs[docId].keywords;
                     for (var key = 0; key < keywords.length; key++) {
             %>
-                <a href="/scan/keyword/<%= keywords[key].trim()%>" class="label"><%= keywords[key].trim()%></a>
+                <a href="/keyword/<%= keywords[key].trim()%>" class="label"><%= keywords[key].trim()%></a>
             <%
                     }
                 }
-            %>        </h4>
-            <%= new Date(docs[docId].value.timestamp).toLocaleString() %>
+            %>
+            </h4>
+            <%= new Date(docs[docId].timestamp).toLocaleString() %>
         </dt>
         <dd>
             <p>
-                <%= docs[docId].value.description %>
+                <%= docs[docId].description %>
             </p>
-            <a href="/scan/<%= docs[docId].value.doc_id%>">properties</a>
+            <a href="/scan/<%= docs[docId].doc_id%>">properties</a>
         </dd>
     <%
             }

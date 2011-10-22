@@ -66,16 +66,7 @@ Server.prototype.connect = function(parent, callback) {
       // emit a message saying we got a master and are ready to go and change state to reflect it
       if(parent.state == 'notConnected') {
         parent.state = 'connected';
-        // 
-        // Call the server version function via admin to adapt to changes from 1.7.6 >
-        // var admindb = parent.admin()
-        // admindb.serverInfo(function(err, doc) {
-        //   if(err != null) return callback(err, null);
-        //   // Store the db version
-        //   parent.version = doc.version;
-        //   parent.versionAsNumber = parseInt(doc.version.replace(/\./g, ""));
-          callback(null, parent);
-        // });
+        callback(null, parent);
       } else {
         callback("connection already opened");
       }
@@ -92,23 +83,42 @@ Server.prototype.connect = function(parent, callback) {
   });
   
   server.connection.on("data", function(message) {
-    // Parse the data as a reply object
-    var reply = new MongoReply(parent, message);    
-    // Emit message
-    parent.emit(reply.responseTo.toString(), null, reply);
+    var reply = null;
+    
+    // Catch error and log
+    try {
+      // Parse the data as a reply object
+      reply = new MongoReply(parent, message);        
+      // Emit message
+      parent.emit(reply.responseTo.toString(), null, reply);
+    } catch(err) {
+      // Catch and emit
+      var errObj = {err:"unparsable", bin:message, trace:err};
+      server.logger.error("mongoreplyParserError", errObj);
+      parent.emit("error", errObj);
+    }    
+
     // Remove the listener
-    if(parent.notReplied[reply.responseTo.toString()]) {
+    if(reply != null && parent.notReplied[reply.responseTo.toString()]) {
       delete parent.notReplied[reply.responseTo.toString()];
       parent.removeListener(reply.responseTo.toString(), parent.listeners(reply.responseTo.toString())[0]);
     }
   });
   
-  server.connection.on("reconnect", function(err) {
-    server.emit('reconnect');
+  server.connection.on("reconnect", function(err) {    
+    // server.emit('reconnect');
+    parent.emit('reconnect');
   });
     
   server.connection.on("error", function(err) {
+    // Log error message
+    var errorType = err.err != null && err.err == "socketHandler" ? err.err : "uncaughtException";    
+    if(server.logger && server.logger.error) server.logger.error("socketHandler", err);      
+    
+    // Move information on to parent loggers
     if(parent.listeners("error") != null && parent.listeners("error").length > 0) parent.emit("error", err);
+    
+    // Reset server connection
     parent.state = "notConnected"
     server.connected = false;
     return callback(err, null);

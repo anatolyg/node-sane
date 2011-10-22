@@ -4,25 +4,34 @@
  * Time: 1:35 AM
  */
 
-var GScan = {
-    outputDir: "./public/scans/",
-    scannerScript: "./scripts/scan-adf.sh",
-    webDir: "/scans/",
-    lib: require('./lib')
-};
-
-var cradle = require('cradle'),
-    db = new(cradle.Connection)().database('node-scan'),
+var GScan = require('./GScan').GScan,
     sys = require('sys'),
     fs = require('fs'),
     exec = require('child_process').exec;
 
 exports.index = function (req, res) {
-    db.view('all_scans/all_scans', function (err, docs) {
-        res.render('index.ejs', {
-            title: "Need to scan something?",
-            docs: docs,
-            msg: req.flash()
+    var searchParams = {};
+    var searchProps = {limit:10};
+    if (req.param("search")) {
+        var criteria = req.param("search");
+        searchParams = {
+            $or : [
+                { name : new RegExp(criteria,"gi") },
+                { keywords : criteria },
+                { description : new RegExp(criteria,"gi")}
+            ]
+        };
+        searchProps = {};
+    }
+    client.collection(GScan.db.collections.scans, function(err, collection) {
+        collection.find(searchParams, searchProps).toArray(function(err, docs) {
+            res.render('index.ejs', {
+                title: "Need to scan something?",
+                locals: {
+                    docs: docs
+                }
+            });
+            client.close();
         });
     });
 };
@@ -35,22 +44,28 @@ exports.view = function(req, res) {
     
     res.render("scan_properties.ejs", {
         title: ((req.gscan.scan) ? req.gscan.scan.name : "NA"),
-        scan: req.gscan.scan,
-        msg: req.flash()
+        locals: {
+            scan: req.gscan.scan
+        }
     });
 };
 
 exports.remove = function(req, res) {
-    db.remove(req.gscan.scan.doc_id, req.gscan.scan._rev, function(err, response) {
-        if (!err) {
+    if (!client) {
+        res.send(500);
+        console.error(err, client);
+        return;
+    }
+    client.collection(GScan.db.collections.scan, function(err, collection) {
+        collection.remove({
+            doc_id: req.gscan.scan.doc_id
+        }, function(err) {
             var child = exec(["rm -rf", GScan.outputDir + req.gscan.scan.doc_id].join(" "), function (error, stdout, stderr) {
                 req.flash("info", ["Document", "'", req.gscan.scan.name, "'", "was deleted"].join(" "));
                 res.redirect("/");
             });
-        }
-        else {
-            console.error(err);
-        }
+            client.close();
+        });
     });
 };
 
@@ -88,19 +103,18 @@ exports.create = function(req, res) {
                         link = [GScan.webDir, docId, "/", docId,".pdf"].join("");
                         title = 'Thanks for scanning!';
                         // put the following into storage, as well as on disk next to PDF
-                        db.save(docId, {
-                            link: link,
-                            timestamp: (new Date()).getTime(),
-                            name: name,
-                            description: desc,
-                            doc_id: docId,
-                            keywords: keywords.replace(/\ /,'').split(",")
-                        }, function (err, res) {
-                            if (err) {
-                                console.error("could not save document", docId, err);
-                            } else {
-                                // Handle success
-                            }
+                        client.collection(GScan.db.collections.scans, function(err, collection) {
+                            collection.insert({
+                                'link': link,
+                                'timestamp': (new Date()).getTime(),
+                                'name': name,
+                                'description': desc,
+                                'doc_id': docId,
+                                'keywords': keywords.replace(/\ /gi,'').split(",")
+                            }, function(err, docs) {
+                                console.log(err, docs);
+                            });
+                            client.close();
                         });
                     }
                 });
@@ -111,17 +125,10 @@ exports.create = function(req, res) {
         });
         res.render('scan.ejs', {
             title: title,
-            msg: req.flash()
+            locals: {}
         });
     }
     else {
-        db.view('all_scans/all_scans', function (err, docs) {
-            res.render('index.ejs', {
-                title: "Need to scan something?",
-                error: "please enter something for name and description, so you can find it later",
-                docs: docs,
-                msg: req.flash()
-            });
-        });
+        res.redirect("/");
     }
 };

@@ -4,47 +4,43 @@
  * Time: 1:37 AM
  */
 
-var cradle = require('cradle'),
-    db = new(cradle.Connection)().database('node-scan');
+var GScan = require('./GScan').GScan;
 
 // Params
 exports.params = {
-    scanId:  function(req, res, next, id){
-        db.get(id, function(err, res) {
-            req.gscan = req.gscan || {};
-            if (!err) {
-                req.gscan.scan = res;
-            }
-            if (!req.gscan.scan && res) {
-                res.send(404);
-            }
-            else {
-                next();
-            }
+    scan:  function(req, res, next, id){
+        client.collection(GScan.db.collections.scans, function(err, collection) {
+            collection.findOne({doc_id: id}, function(err, doc) {
+                req.gscan = req.gscan || {};
+                client.close();
+                if (!err) {
+                    req.gscan.scan = doc;
+                }
+                if (!req.gscan.scan && doc) {
+                    res.send(404);
+                }
+                else {
+                    next();
+                }
+            });
         });
     },
     
     keyword: function(req, res, next, id){
-        db.view('all_scans/keyword', function (err, docs) {
-            res.render('index.ejs', {
-                title: "Need to scan something?",
-                error: "please enter something for name and description, so you can find it later",
-                docs: docs,
-                msg: req.flash()
+        client.collection(GScan.db.collections.scans, function(err, collection) {
+            collection.find({keywords: id}).toArray(function(err, docs) {
+                req.gscan = req.gscan || {};
+                client.close();
+                if (!err) {
+                    req.gscan.scan = docs;
+                }
+                if (!req.gscan.scan && docs) {
+                    res.send(404);
+                }
+                else {
+                    next();
+                }
             });
-        });
-
-        db.get(id, function(err, res) {
-            req.gscan = req.gscan || {};
-            if (!err) {
-                req.gscan.scan = res;
-            }
-            if (!req.gscan.scan && res) {
-                res.send(404);
-            }
-            else {
-                next();
-            }
         });
     }
 };

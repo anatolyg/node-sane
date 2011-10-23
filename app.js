@@ -5,11 +5,8 @@
 
 var express = require('express'),
     sys = require('sys'),
-    MemoryStore = express.session.MemoryStore,
-    mongoose = require('mongoose'),
-    client = mongoose.connect('mongodb://localhost/nodescan')
+    MemoryStore = express.session.MemoryStore;
 
-debugger;
 var app = module.exports = express.createServer();
 
 var scan = require('./app/scan'),

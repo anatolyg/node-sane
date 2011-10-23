@@ -6,10 +6,10 @@
 var express = require('express'),
     sys = require('sys'),
     MemoryStore = express.session.MemoryStore,
-    GScan = require('./app/GScan').GScan,
     mongoose = require('mongoose'),
     client = mongoose.connect('mongodb://localhost/nodescan')
 
+debugger;
 var app = module.exports = express.createServer();
 
 var scan = require('./app/scan'),
@@ -35,7 +35,6 @@ app.configure(function(){
     app.use(require('stylus').middleware({ src: __dirname + '/public' }));
     app.use(app.router);
     app.use(express.static(__dirname + '/public'));
-    app.set('client', client);
 });
 
 app.configure('development', function(){

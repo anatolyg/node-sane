@@ -4,7 +4,7 @@
  * Time: 1:35 AM
  */
 
-var GScan = require('./GScan').GScan,
+var GScan = new (require('./GScan').GScan)(),
     sys = require('sys'),
     fs = require('fs'),
     exec = require('child_process').exec;
@@ -23,15 +23,17 @@ exports.index = function (req, res) {
         };
         searchProps = {};
     }
-    client.collection(GScan.db.collections.scans, function(err, collection) {
+    GScan.db.collection(GScan.config.db.collections.scans, function(err, collection) {
         collection.find(searchParams, searchProps).toArray(function(err, docs) {
+            if (req.param("search") && docs.length === 0) {
+                req.flash("info", "Your query returned 0 results");
+            }
             res.render('index.ejs', {
                 title: "Need to scan something?",
                 locals: {
                     docs: docs
                 }
             });
-            client.close();
         });
     });
 };
@@ -51,20 +53,19 @@ exports.view = function(req, res) {
 };
 
 exports.remove = function(req, res) {
-    if (!client) {
+    if (!GScan.db) {
         res.send(500);
-        console.error(err, client);
+        console.error(err, GScan.db);
         return;
     }
-    client.collection(GScan.db.collections.scan, function(err, collection) {
+    GScan.db.collection(GScan.config.db.collections.scans, function(err, collection) {
         collection.remove({
             doc_id: req.gscan.scan.doc_id
         }, function(err) {
-            var child = exec(["rm -rf", GScan.outputDir + req.gscan.scan.doc_id].join(" "), function (error, stdout, stderr) {
+            var child = exec(["rm -rf", GScan.config.outputDir + req.gscan.scan.doc_id].join(" "), function (error, stdout, stderr) {
                 req.flash("info", ["Document", "'", req.gscan.scan.name, "'", "was deleted"].join(" "));
                 res.redirect("/");
             });
-            client.close();
         });
     });
 };
@@ -80,12 +81,12 @@ exports.create = function(req, res) {
     // name and desc are valid
     if (name && desc) {
         // let's create an ID to call this guy
-        var dirName = GScan.outputDir + docId;
+        var dirName = GScan.config.outputDir + docId;
 
         fs.mkdir(dirName, 0755, function(err) {
             if (!err) {
                 // directory created successfully, let's scan
-                var child = exec([GScan.scannerScript, dirName, docId].join(" "), function (error, stdout, stderr) {
+                var child = exec([GScan.config.scannerScript, dirName, docId].join(" "), function (error, stdout, stderr) {
                     sys.print('stdout: ' + stdout);
                     sys.print('stderr: ' + stderr);
                     if (error !== null) {
@@ -100,21 +101,20 @@ exports.create = function(req, res) {
                     }
                     else {
                         // this is where partial comes in?
-                        link = [GScan.webDir, docId, "/", docId,".pdf"].join("");
+                        link = [GScan.config.webDir, docId, "/", docId,".pdf"].join("");
                         title = 'Thanks for scanning!';
                         // put the following into storage, as well as on disk next to PDF
-                        client.collection(GScan.db.collections.scans, function(err, collection) {
+                        GScan.db.collection(GScan.config.db.collections.scans, function(err, collection) {
                             collection.insert({
                                 'link': link,
                                 'timestamp': (new Date()).getTime(),
                                 'name': name,
                                 'description': desc,
                                 'doc_id': docId,
-                                'keywords': keywords.replace(/\ /gi,'').split(",")
+                                'keywords': keywords.split(/[\s,]+/)
                             }, function(err, docs) {
                                 console.log(err, docs);
                             });
-                            client.close();
                         });
                     }
                 });
